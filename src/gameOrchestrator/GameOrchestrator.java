@@ -207,11 +207,10 @@ public class GameOrchestrator {
         for (int day = 1; day <= 31; day++) {
             if(day==1){
                 everyDayDecisionHandler.dayDecisionHandle(day);
-            }else if(!everyDayDecisionHandler.shouldCreateNew(day)){
+            }else if(!everyDayDecisionHandler.checkDayIsInRange(day)){
                 everyDayDecisionHandler.dayDecisionHandle(day);
             }
             everyDayDecisionHandler.dayDecisionProvider(day);
-            everyDayDecisionHandler.isItLast(day);
             if(day == 31){
                 output.outliner();
                 output.workMonthIsEnd();
