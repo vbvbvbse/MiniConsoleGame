@@ -8,9 +8,9 @@ public class CompanyService {
     private Worker workerPosition;
     private boolean isPositionGuideHasTold;
 
-    private int hoursWorkedNow;
-    private final int HOURS_COULD_WORKING_MAX = 6;
+    private int hoursWorkedNow = 0;
     //rates
+    private int successRate;
     private int highRate;
     private int midRate;
     private int lowRate;
@@ -22,15 +22,19 @@ public class CompanyService {
     public CompanyService(Worker workerPosition) {
         isPositionGuideHasTold = false;
         this.workerPosition = workerPosition;
-        this.hoursWorkedNow = 0;
+    }
+
+    public void setHoursWorkedNow(int hoursWorkedNow) {
+        this.hoursWorkedNow = hoursWorkedNow;
     }
 
     public boolean couldWorking(int hourNow){
-        return hourNow - hoursWorkedNow >= HOURS_COULD_WORKING_MAX;
+        int HOURS_COULD_WORKING_MAX = 5;
+        return hoursWorkedNow >= HOURS_COULD_WORKING_MAX;
     }
 
-    public void resetHoursWorked(){
-        hoursWorkedNow = 0;
+    public void resetHoursWorked(int hourNow){
+        this.hoursWorkedNow = hourNow;
     }
 
     public void workProcess() {
@@ -39,9 +43,10 @@ public class CompanyService {
             isPositionGuideHasTold = true;
         }
         hoursWorkedNow++;
-        int successRate = randomWorkScaleOfSuccess.randomScaleSuccess(workerPosition.getWorkPurpose());
+        this.successRate = randomWorkScaleOfSuccess.randomScaleSuccess();
         successRateAdder(successRate);
     }
+
 
     private void successRateAdder(int successRate) {
         switch(successRate) {
@@ -49,6 +54,10 @@ public class CompanyService {
             case 2-> midRate++;
             case 3-> highRate++;
         }
+    }
+
+    public int getSuccessRate() {
+        return successRate;
     }
 
     public SuccessRateDay successRateDayHandler(){

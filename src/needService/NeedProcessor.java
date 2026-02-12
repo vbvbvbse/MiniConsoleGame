@@ -25,4 +25,9 @@ public class NeedProcessor {
         NeedResetType needResetType = needProcessorMap.get(need.getNeedType());
         needResetType.resetType(need,hourNow);
     }
+
+    public void satisfyAuto(int hourNow,Need need) {
+        NeedResetType needResetType = needProcessorMap.get(need.getNeedType());
+        needResetType.resetTypeAuto(need,hourNow);
+    }
 }

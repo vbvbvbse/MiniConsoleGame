@@ -29,9 +29,9 @@ public class Menu {
         //create human
         HumanService humanService = new HumanService();
 
-        humanService.setName(Reader.readStringNLN("Введите имя вашего работника: "));
+        checkName(humanService);
 
-        humanService.setAge(Reader.readIntNLN( "Введите возраст вашего вашего работника: "));
+        checkAge(humanService);
 
         humanService.setGender(Reader.smartReaderGender("Введите пол вашего человека(%s): "));
 
@@ -62,6 +62,26 @@ public class Menu {
         );
         startSimulation();
         gameOrchestrator.monthWorkDayFlow();
+    }
+
+    private void checkAge(HumanService humanService){
+        while(true){
+            humanService.setAge(Reader.readIntNLN( "Введите возраст вашего вашего работника: "));
+            if(!(humanService.getAge() < 18)){
+                break;
+            }
+            System.out.println("Работнику должно быть 18 лет. Введите корректный возраст!");
+        }
+    }
+
+    private void checkName(HumanService humanService){
+        while(true) {
+            humanService.setName(Reader.readStringNLN("Введите имя вашего работника: "));
+            if (!(humanService.getName().length() <= 1)) {
+                break;
+            }
+            System.out.println("Вы ввели некорректное имя!");
+        }
     }
 
 }

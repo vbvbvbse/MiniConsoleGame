@@ -8,4 +8,9 @@ public class SmokeReset implements NeedResetType {
         System.out.println("Вы покурили!");
         need.reset(hourNow);
     }
+
+    @Override
+    public void resetTypeAuto(Need need, int hourNow) {
+        need.reset(hourNow);
+    }
 }

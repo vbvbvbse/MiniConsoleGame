@@ -9,6 +9,9 @@ public class RelaxService {
         this.relaxCount = 0;
     }
 
+    public void setRelaxCount(int relaxCount) {
+        this.relaxCount = relaxCount;
+    }
     private void plusRelaxCount(){
         relaxCount++;
     }

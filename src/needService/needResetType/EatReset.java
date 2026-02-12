@@ -8,4 +8,9 @@ public class EatReset implements NeedResetType {
         System.out.println("Вы покушали!");
         need.reset(hourNow);
     }
+
+    @Override
+    public void resetTypeAuto(Need need, int hourNow) {
+        need.reset(hourNow);
+    }
 }

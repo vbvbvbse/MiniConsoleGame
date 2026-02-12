@@ -1,18 +1,14 @@
 package gameOrchestrator;
 
 import companyService.CompanyService;
-import companyService.SuccessRateDay;
 import companyService.SuccessRateMonth;
-import companyService.WorkingTooManyHours;
 import companyService.companySalary.CompanySalaryService;
 import companyService.positions.Worker;
 import fineService.FineService;
-import fineService.RelaxAfterMaxFines;
 import humanService.HumanService;
 import humanService.HumanSmoking;
 import needService.Need;
 import needService.NeedProcessor;
-import needService.NeedTolerateFail;
 import needService.NeedType;
 import needService.needDecision.NeedDecision;
 import needService.needDecision.NeedDecisionType;
@@ -33,27 +29,29 @@ public class GameOrchestrator {
                     new Need(NeedType.EAT,"кушать",5,6,0)
             )
     );
-    //special classes
+    //инициализация спец классов
     final Output output = new Output();
 
     final HumanService humanService;
 
     final NeedProcessor needProcessor;
     final NeedDecision needDecision = new NeedDecision();
-    final NeedTolerateFail needTolerateFail = new NeedTolerateFail();
 
     final RelaxService relaxService;
     final RelaxNeedsSatisfy relaxNeedsSatisfy = new RelaxNeedsSatisfy();
 
 
     final FineService fineService;
-    final RelaxAfterMaxFines relaxAfterMaxFines = new RelaxAfterMaxFines();
 
 
     final Worker workerPosition;
-    final CompanyService companyService;
-    final WorkingTooManyHours workingTooManyHours = new WorkingTooManyHours();
+    private CompanyService companyService;
     final CompanySalaryService companySalaryService;
+
+    //инициализация класса, который обрабатывает какой режим работы программы относительно дня был выбран
+    final DayDecisionTypeHandler  dayDecisionTypeHandler;
+    //инициализация класса, который обрабатывает каждый день, входит ли в рамки кол-ва дней для режима работы программы
+    final DayDecisionHandler everyDayDecisionHandler;
 
     public GameOrchestrator(HumanService humanService, HumanSmoking isSmoking, Worker workerPosition, CompanyService companyService, CompanySalaryService companySalaryService, NeedProcessor needProcessor, RelaxService relaxService, FineService fineService) {
         this.humanService = humanService;
@@ -61,6 +59,8 @@ public class GameOrchestrator {
         shouldAddSmokingToList();
         this.workerPosition = workerPosition;
         this.companyService = companyService;
+        this.dayDecisionTypeHandler = new DayDecisionTypeHandler(output,this,companyService);
+        this.everyDayDecisionHandler = new DayDecisionHandler(output,dayDecisionTypeHandler);
         this.companySalaryService = companySalaryService;
         this.needProcessor = needProcessor;
         this.relaxService = relaxService;
@@ -81,6 +81,12 @@ public class GameOrchestrator {
         output.relaxResultOutput(relaxResultType);
     }
 
+    private void relaxServiceLogicAuto(int hourNow){
+        RelaxResultType relaxResultType = relaxService.tryRelax(hourNow);
+        relaxNeedsSatisfy.relaxNeedsResetAuto(relaxResultType,needs,needProcessor,hourNow,companyService);
+    }
+
+
     private void needProcessorLogic(int hourNow,Need need){
         if(!need.shouldReset(hourNow)){
             return;
@@ -95,22 +101,61 @@ public class GameOrchestrator {
             if(!need.shouldResetHigh(hourNow)){
                 return;
             }
-            needTolerateFail.fail(need, fineService);
+            fineService.plusFineCount();
+            output.failedNeed(need);
         }
         output.outliner();
     }
 
-    private void fineServiceLogic(int hourNow){
-        if(!fineService.isFineMaxed()){
+    private void needProcessorLogicAuto(int hourNow,Need need,NeedDecisionType decision){
+        if(!need.shouldReset(hourNow)){
             return;
         }
-        fineService.fineGetMax();
-        relaxAfterMaxFines.relaxAfterMaxFines();
-        relaxServiceLogic(hourNow);
+        if(decision == NeedDecisionType.SATISFY){
+            needProcessor.satisfyAuto(hourNow,need);
+        } else if(decision == NeedDecisionType.TOLERATE){
+            if(!need.shouldResetHigh(hourNow)){
+                return;
+            }
+            fineService.plusFineCount();
+        }
+    }
+
+    private void fineServiceLogic(int hourNow){
+        if(fineService.fineGetMax()) {
+            output.fineMaxed();
+            relaxServiceLogic(hourNow);
+        }
+    }
+    private void fineServiceLogicAuto(int hourNow){
+        if(fineService.fineGetMax()) {
+            relaxServiceLogicAuto(hourNow);
+        }
+    }
+
+    private void workServicesLogic(int hourNow){
+        if(companyService.couldWorking(hourNow)) {
+            fineService.plusFineCount();
+            output.failedWorking();
+            fineServiceLogic(hourNow);
+            return;
+        }
+        companyService.workProcess();
+        int successRate = companyService.getSuccessRate();
+        output.successRateOutputHandler(successRate,workerPosition);
+    }
+
+    private void workServicesLogicAuto(int hourNow){
+        if(companyService.couldWorking(hourNow)) {
+            fineService.plusFineCount();
+            fineServiceLogicAuto(hourNow);
+            return;
+        }
+        companyService.workProcess();
     }
 
     //методы для течения дня
-    private void whatDoInHour(int hourNow){
+    public void whatDoInHour(int hourNow){
         while(true){
             int choice = Reader.readInt(output.inChoiceWhatDo());
             if(choice==1){
@@ -125,48 +170,48 @@ public class GameOrchestrator {
 
         }
     }
+    public void whatDoInHourAuto(int hourNow,int choice){
+        while(true){
+            if(choice==1){
+                workServicesLogicAuto(hourNow);
+                return;
+            } else if(choice==2) {
+                relaxServiceLogicAuto(hourNow);
+                return;
+            }
+        }
+    }
 
-    private void needsChecker(int hourNow){
+    public void needsChecker(int hourNow){
         for(Need need : needs){
             needProcessorLogic(hourNow,need);
         }
         fineServiceLogic(hourNow);
     }
-
-    //методы работы
-    private void workServicesLogic(int hourNow){
-        if(companyService.couldWorking(hourNow)) {
-            workingTooManyHours.tooMany(hourNow, fineService);
-            fineServiceLogic(hourNow);
-            return;
+    public void needsCheckerAuto(int hourNow,NeedDecisionType decision){
+        for(Need need : needs){
+            needProcessorLogicAuto(hourNow,need,decision);
         }
-        companyService.workProcess();
+        fineServiceLogicAuto(hourNow);
     }
 
-    //метод течения дня
-    private void workDayFlow(){
-        for (int hourNow = 1; hourNow <= 12; hourNow++) {
-            output.whatHourNow(hourNow);
-            output.outliner();
-            needsChecker(hourNow);
-            whatDoInHour(hourNow);
-            output.outliner();
-            if(hourNow == 12){
-                output.outliner();
-                output.workDayIsEnd();
-                SuccessRateDay successRateDay = companyService.successRateDayHandler();
-                output.successRateDayOutput(successRateDay);
-                output.outliner();
-            }
-        }
+    public void everyDayReset(){
+        companyService.setHoursWorkedNow(0);
+        fineService.setFineCount(0);
+        relaxService.setRelaxCount(0);
     }
 
+
+    //метод течения месяца
     public void monthWorkDayFlow(){
         for (int day = 1; day <= 31; day++) {
-            output.outliner();
-            System.out.printf("День %d: \n",day);
-            output.outliner();
-            workDayFlow();
+            if(day==1){
+                everyDayDecisionHandler.dayDecisionHandle(day);
+            }else if(!everyDayDecisionHandler.shouldCreateNew(day)){
+                everyDayDecisionHandler.dayDecisionHandle(day);
+            }
+            everyDayDecisionHandler.dayDecisionProvider(day);
+            everyDayDecisionHandler.isItLast(day);
             if(day == 31){
                 output.outliner();
                 output.workMonthIsEnd();
